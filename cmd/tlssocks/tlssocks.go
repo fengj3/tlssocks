@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"encoding/json"
 
-	"github.com/armon/go-socks5"
+	"github.com/fengj3/go-socks5"
 	"github.com/foomo/htpasswd"
 	"go.uber.org/zap"
 
