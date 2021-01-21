@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"encoding/json"
 
 	"github.com/foomo/tlssocks"
 	"github.com/pkg/errors"
@@ -18,6 +19,7 @@ import (
 
 var (
 	logger *zap.Logger
+	cfg zap.Config
 )
 
 const (
@@ -26,7 +28,24 @@ const (
 )
 
 func init() {
-	l, _ := zap.NewProduction()
+	rawJSON := []byte(`{
+		"level": "info",
+		"outputPaths": ["stdout"],
+		"errorOutputPaths": ["stderr"],
+		"encoding": "json",
+		"encoderConfig": {
+			"messageKey": "message",
+			"levelKey": "level",
+			"levelEncoder": "lowercase"
+		}
+	}`)
+	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
+		panic(err)
+	}
+	l, err := cfg.Build()
+	if err != nil {
+		panic(err)
+	}
 	logger = l
 }
 
@@ -41,11 +60,16 @@ func copyData(streamName string, dst io.Writer, src io.Reader) error {
 func main() {
 	defer logger.Sync()
 
+	flagQuiet := flag.Bool("quiet", false, "only print error level of log")
 	flagInsecureSkipVerify := flag.Bool("insecure-skip-verify", false, "allow insecure skipping of peer verification, when talking to the server")
 	flagAddr := flag.String("addr", "0.0.0.0:8080", "address to listen to like 0.0.0.0:8001")
 	flagAddrServer := flag.String("server", "", "address of the tls socks server like 0.0.0.0:8000")
 	flag.Parse()
 
+	if(*flagQuiet) {
+		cfg.Level.SetLevel(zap.ErrorLevel)
+	}
+	
 	logger.Info(
 		"Starting socks proxy to listen on addr and forward requests to server",
 		zap.String("addr", *flagAddr),

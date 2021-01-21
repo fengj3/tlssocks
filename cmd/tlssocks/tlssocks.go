@@ -4,127 +4,40 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"net"
-	"time"
+	"encoding/json"
 
 	"github.com/armon/go-socks5"
 	"github.com/foomo/htpasswd"
 	"go.uber.org/zap"
 
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
 )
 
-var logger *zap.Logger
+var (
+	logger *zap.Logger
+    cfg zap.Config
+)
 
 func init() {
-	l, _ := zap.NewProduction()
+	rawJSON := []byte(`{
+		"level": "info",
+		"outputPaths": ["stdout"],
+		"errorOutputPaths": ["stderr"],
+		"encoding": "json",
+		"encoderConfig": {
+			"messageKey": "message",
+			"levelKey": "level",
+			"levelEncoder": "lowercase"
+		}
+	}`)
+	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
+		panic(err)
+	}
+	l, err := cfg.Build()
+	if err != nil {
+		panic(err)
+	}
 	logger = l
-}
-
-type socksAuthenticator struct {
-	Destinations  map[string]*Destination
-	resolvedNames map[string][]string
-}
-
-func newSocksAuthenticator(destinations map[string]*Destination) (suxx5 *socksAuthenticator, err error) {
-	suxx5 = &socksAuthenticator{
-		Destinations: destinations,
-	}
-	names := []string{}
-	for name := range destinations {
-		names = append(names, name)
-	}
-	resolvedNames, errResolveNames := resolveNames(names)
-	if errResolveNames != nil {
-		err = errResolveNames
-		return
-	}
-	suxx5.resolvedNames = resolvedNames
-	go func() {
-		time.Sleep(time.Second * 10)
-		resolvedNames, errResolveNames := resolveNames(names)
-		if errResolveNames == nil {
-			suxx5.resolvedNames = resolvedNames
-		} else {
-			logger.Warn("could not resolve names: " + errResolveNames.Error())
-		}
-	}()
-	return
-}
-
-func resolveNames(names []string) (newResolvedNames map[string][]string, err error) {
-	newResolvedNames = map[string][]string{}
-	for _, name := range names {
-		addrs, errLookup := net.LookupHost(name)
-		if errLookup != nil {
-			err = errLookup
-			return
-		}
-		newResolvedNames[name] = addrs
-	}
-	return
-}
-func (suxx5 *socksAuthenticator) Allow(ctx context.Context, req *socks5.Request) (newCtx context.Context, allowed bool) {
-	allowed = false
-	newCtx = ctx
-	zapTo := zap.String("to", req.DestAddr.String())
-	zapUser := zap.String("for", req.AuthContext.Payload["Username"])
-	for name, ips := range suxx5.resolvedNames {
-		zapName := zap.String("name", name)
-		for _, ip := range ips {
-			if ip == req.DestAddr.IP.String() {
-				destination, destinationOK := suxx5.Destinations[name]
-				if destinationOK {
-					for _, allowedPort := range destination.Ports {
-						if allowedPort == req.DestAddr.Port {
-							if len(destination.Users) == 0 {
-								allowed = true
-							}
-							if !allowed {
-								userNameInContext, userNameInContextOK := req.AuthContext.Payload["Username"]
-								if !userNameInContextOK {
-									// explicit user expected, but not found
-									logger.Info("denied - no user found", zapName, zapTo)
-									return
-								}
-								for _, userName := range destination.Users {
-									if userName == userNameInContext {
-										allowed = true
-										break
-									}
-								}
-								if !allowed {
-									logger.Info(
-										"denied",
-										zapName,
-										zapTo,
-										zapUser,
-									)
-									return
-								}
-							}
-							if allowed {
-								logger.Info(
-									"allowed",
-									zapName,
-									zapTo,
-									zapUser,
-								)
-
-								allowed = true
-								return
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	logger.Info("denied", zapTo, zapUser)
-	return
 }
 
 type Credentials map[string]string
@@ -151,31 +64,25 @@ type Destination struct {
 
 func main() {
 	defer logger.Sync()
+	
+	flagQuiet := flag.Bool("quiet", false, "only print error level of log")
 	flagAddr := flag.String("addr", "", "where to listen like 127.0.0.1:8000")
 	flagHtpasswdFile := flag.String("auth", "", "basic auth file")
-	flagDestinationsFile := flag.String("destinations", "", "file with destinations config")
 	flagCert := flag.String("cert", "", "path to server cert.pem")
 	flagKey := flag.String("key", "", "path to server key.pem")
 	flag.Parse()
-
-	destinationBytes, errReadDestinationBytes := ioutil.ReadFile(*flagDestinationsFile)
-	must(errReadDestinationBytes, "can not read destinations config")
-
-	destinations := map[string]*Destination{}
-
-	must(yaml.Unmarshal(destinationBytes, destinations), "can not parse destinations")
+	
+	if(*flagQuiet) {
+		cfg.Level.SetLevel(zap.ErrorLevel)
+	}
 
 	passwordHashes, errParsePasswords := htpasswd.ParseHtpasswdFile(*flagHtpasswdFile)
 	must(errParsePasswords, "basic auth file sucks")
 	credentials := Credentials(passwordHashes)
 
-	suxx5, errSuxx5 := newSocksAuthenticator(destinations)
-	must(errSuxx5)
-
 	autenticator := socks5.UserPassAuthenticator{Credentials: credentials}
 
-	conf := &socks5.Config{
-		Rules:       suxx5,
+	conf := &socks5.Config {
 		AuthMethods: []socks5.Authenticator{autenticator},
 	}
 	server, err := socks5.New(conf)

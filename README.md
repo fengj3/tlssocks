@@ -90,54 +90,23 @@ Based on [github.com/armon/go-socks5](github.com/armon/go-socks5) wrapped by [ht
 
 - tls protection
 - authentication with bcrypt hashed passwords (htpasswd compatible)
-- destinations configuration
 
 Managing credentials:
 
 Can be done with good old htpasswd - in case of doubt `man htpasswd`
 
+## generate auth info
+
+### first method
 ```bash
-# set the password for a user in an existing file using bcrypt
+# set the password for a user in an existing file using bcrypt(cost: 10)
 htpasswd -B path/to/users.htpasswd <user-name>
 ```
 
-Configuring destinations:
+### second method
 
-By default every proxy request is denied, except it is explicitly allowed through the destinations configuration. 
-
-Destinations are configured on a name basis and allowed for ports and users.
-
-WARNING - if you are running multiple vhosts on one destination all of them are accessible, since tlssocks is not inspecting the incoming traffic.
-
-```yaml
----
-# destination www.heise.de will be accessible trough ports 80, 443 for users jan and peter
-www.heise.de:
-  ports: 
-    - 80
-    - 443
-  users:
-    - jan
-    - peter
-# destination echo is acce
-echo:
-  ports: 
-    - 8080
-  users:
-    - jan
-
-www.google.com:
-  ports: 
-    - 443
-  users:
-    - peter
-...
-```
-
-## caveats / todos
-
-- only name based destinations are supported
+go to [http://aspirine.org/htpasswd_en.html](http://aspirine.org/htpasswd_en.html) for generate
 
 ## security concerns
 
-All vhosts on a destination can be accessed through the allowed ports - there is no traffic inspection to prevent this.
+Unsafe, socks will be detected actively.
