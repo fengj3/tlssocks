@@ -25,7 +25,7 @@ jobs:
         name: Checkout
         uses: actions/checkout@v2
       -
-        name: Build with xgo
+        name: Build tlssocks with xgo
         uses: crazy-max/ghaction-xgo@v1.5.0
         with:
           pkg: cmd/tlssocksproxy
@@ -33,7 +33,7 @@ jobs:
           go_version: ${{ matrix.go_version }}
           dest: build
           prefix: tlssocks
-          targets: windows/386,windows/amd64,linux/386,linux/amd64,darwin/386,darwin/amd64,android/arm64,android/arm
+          targets: android/386,android/amd64,android/arm64,android/arm
           v: true
           x: false
           race: false
@@ -43,5 +43,5 @@ jobs:
         name: Upload .so to Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: my-artifact
+          name: Binary
           path: build 
