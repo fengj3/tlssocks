@@ -13,7 +13,7 @@ on:
       - README.md
 
 jobs:
-  xgo:
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +28,7 @@ jobs:
         name: Build with xgo
         uses: crazy-max/ghaction-xgo@v1.5.0
         with:
+          pkg: cmd/tlssocksproxy
           xgo_version: latest
           go_version: ${{ matrix.go_version }}
           dest: build
