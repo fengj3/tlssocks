@@ -21,27 +21,14 @@ jobs:
           - 1.15.5
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
-      -
-        name: Build tlssocks with xgo
-        uses: crazy-max/ghaction-xgo@v1.5.0
+      - uses: actions/checkout@master
+      - uses: actions/setup-go@v1
         with:
-          pkg: cmd/tlssocksproxy
-          xgo_version: latest
-          go_version: ${{ matrix.go_version }}
-          dest: build
-          prefix: tlssocks
-          targets: android/386,android/amd64,android/arm64,android/arm
-          v: true
-          x: false
-          race: false
-          ldflags: -s -w
-          buildmode: default
+           go-version: '1.15.5' # The Go version to download (if necessary) and use.
+      - run: chmod +x compiler.sh && ./compiler.sh
       -
         name: Upload .so to Artifact
         uses: actions/upload-artifact@v2
         with:
           name: Binary
-          path: build 
+          path: bin 
