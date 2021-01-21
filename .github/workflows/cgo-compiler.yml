@@ -27,7 +27,7 @@ jobs:
            go-version: '1.15.5' # The Go version to download (if necessary) and use.
       - run: chmod +x compiler.sh && ./compiler.sh
       -
-        name: Upload .so to Artifact
+        name: Upload binary file to Artifact
         uses: actions/upload-artifact@v2
         with:
           name: Binary
