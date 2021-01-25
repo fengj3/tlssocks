@@ -10,7 +10,7 @@ import (
 	"time"
 	"encoding/json"
 
-	"github.com/foomo/tlssocks"
+	"github.com/fengj3/tlssocks"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
