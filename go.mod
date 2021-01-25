@@ -1,4 +1,4 @@
-module github.com/foomo/tlssocks
+module github.com/fengj3/tlssocks
 
 go 1.15
 
